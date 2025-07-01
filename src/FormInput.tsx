@@ -140,15 +140,13 @@ const handleSubmit = async (e: React.FormEvent) => {
     };
 
     // URL Google Apps Script
-    const scriptUrl = 'https://script.google.com/macros/s/AKfycbwQpKounVvNAmErqrJgEwa5ETXP8W_-ZCLWklgpHVjn6Iv9dT3B2MHrdNyw7QeKlVyjkw/exec';
+    const scriptUrl = "https://script.google.com/macros/s/AKfycbwQpKounVvNAmErqrJgEwa5ETXP8W_-ZCLWklgpHVjn6Iv9dT3B2MHrdNyw7QeKlVyjkw/exec";
 
     // Pastikan URL menggunakan HTTPS
     const secureScriptUrl = scriptUrl.replace('http://', 'https://');
 
-    // Menggunakan proxy di development
-    const apiUrl = import.meta.env.DEV 
-      ? `/api/${secureScriptUrl.split('/macros/')[1]}`
-      : secureScriptUrl;
+    // Gunakan langsung script URL
+const apiUrl = secureScriptUrl;
 
     const response = await fetch(apiUrl, {
       method: 'POST',
