@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 
 const FormInput = () => {
   const [formData, setFormData] = useState({
@@ -12,26 +12,7 @@ const FormInput = () => {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<{
-    show: boolean;
-    type: 'success' | 'error' | null;
-    message: string;
-  }>({ show: false, type: null, message: '' });
-
-  // Handle notifications
-  useEffect(() => {
-    if (submitStatus.show) {
-      alert(submitStatus.message);
-      setSubmitStatus({ show: false, type: null, message: '' });
-
-      // Reset form if success
-      if (submitStatus.type === 'success') {
-        clearForm();
-      }
-    }
-  }, [submitStatus]);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null); 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type, checked } = e.target;
@@ -48,31 +29,18 @@ const FormInput = () => {
       ctx?.clearRect(0, 0, canvas.width, canvas.height);
     }
   };
-
-  const clearForm = () => {
-    setFormData({
-      nama: '',
-      nrp: '',
-      materi: '',
-      instruktur: '',
-      tanggal: '',
-      persetujuan: false,
-    });
-    clearCanvas();
-    setUploadedFile(null);
-  };
-
   const downloadSignature = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const image = canvas.toDataURL('image/png');
-
+  
     const link = document.createElement('a');
     link.href = image;
     link.download = `TandaTangan_${formData.nama || 'tanpa_nama'}.png`;
     link.click();
-  };
+  };  
 
+  // Fungsi posisi sentuhan (untuk touchscreen)
   const getTouchPos = (e: React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const rect = canvas?.getBoundingClientRect();
@@ -138,71 +106,55 @@ const FormInput = () => {
       reader.onerror = reject;
     });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.persetujuan) {
-      alert('Anda harus menyetujui pernyataan');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const signatureData = uploadedFile
-        ? await toBase64(uploadedFile)
-        : canvasRef.current?.toDataURL() || '';
-
-      if (!signatureData) {
-        throw new Error('Tanda tangan wajib diisi');
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      // Validasi
+      if (!formData.persetujuan) {
+        alert('Anda harus menyetujui pernyataan');
+        return;
       }
+    
+      try {
+        const signatureData = uploadedFile 
+          ? await toBase64(uploadedFile)
+          : canvasRef.current?.toDataURL() || '';
+    
+        const payload = {
+          ...formData,
+          signature: signatureData
+        };
+    
+      const url = 'https://script.google.com/macros/s/AKfycbxVxqDmBLA6LoC-ZfTgQS4smmVRH_LWhhypYix10fE38_rjhZEWbzG_wVYbImYF0af7/exec';
 
-      const payload = {
-        ...formData,
-        signature: signatureData,
-      };
+const response = await fetch(url, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify(payload)
+});
 
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbxVxqDmBLA6LoC-ZfTgQS4smmVRH_LWhhypYix10fE38_rjhZEWbzG_wVYbImYF0af7/exec',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.status === 'error') {
-          throw new Error(result.message);
-        }
+const result = await response.json();
+console.log(result);
+    
+        // Jika menggunakan mode no-cors, response tidak bisa dibaca
+        alert('Data berhasil dikirim!');
+        clearForm(); 
+    
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan saat mengirim data');
       }
-
-      setSubmitStatus({
-        show: true,
-        type: 'success',
-        message: 'Data berhasil dikirim!'
-      });
-
-    } catch (error: any) {
-      setSubmitStatus({
-        show: true,
-        type: 'error',
-        message: error.message || 'Terjadi kesalahan saat mengirim data'
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    }; 
 
   return (
     <form onSubmit={handleSubmit} className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4 w-full max-w-md">
+        {/* Logo kanan atas */}
       <div className="flex justify-between items-center mb-4">
-        <div></div>
-        <img src="/logo-alamtri.png" alt="Logo Perusahaan" className="w-24 h-auto object-contain" />
-      </div>
+      <div></div>
+      <img src="/logo-alamtri.png" alt="Logo Perusahaan" className="w-24 h-auto object-contain" />
+    </div>
       <h2 className="text-2xl font-bold mb-4 text-center">SURAT PERNYATAAN</h2>
 
       <input className="mb-2 p-2 w-full border" type="text" name="nama" placeholder="Nama" value={formData.nama} onChange={handleChange} required />
@@ -265,76 +217,61 @@ const FormInput = () => {
         <option value="Nama 34">GATOT SETIAWAN</option>
         <option value="Nama 35">SLAMET HERIANTO</option>
         <option value="Nama 36">YULIAN MUSTOFA</option>
+
       </select>
 
       <input className="mb-2 p-2 w-full border" type="date" name="tanggal" value={formData.tanggal} onChange={handleChange} required />
 
       <label className="block mb-1">Tanda Tangan:</label>
-      <canvas
-        ref={canvasRef}
-        width={300}
-        height={100}
-        className="border mb-2 bg-white touch-none"
-        onMouseDown={startDrawing}
-        onMouseMove={draw}
-        onMouseUp={stopDrawing}
-        onMouseLeave={stopDrawing}
-        onTouchStart={startDrawing}
-        onTouchMove={draw}
-        onTouchEnd={stopDrawing}
-      />
+<canvas
+  ref={canvasRef}
+  width={300}
+  height={100}
+  className="border mb-2 bg-white touch-none"
+  onMouseDown={startDrawing}
+  onMouseMove={draw}
+  onMouseUp={stopDrawing}
+  onMouseLeave={stopDrawing}
+  onTouchStart={startDrawing}
+  onTouchMove={draw}
+  onTouchEnd={stopDrawing}
+/>
 
-      {formData.nama && (
-        <p className="mb-2 text-sm text-gray-700 italic">Tertanda: {formData.nama}</p>
-      )}
+{/* Menampilkan nama di bawah tanda tangan */}
+{formData.nama && (
+  <p className="mb-2 text-sm text-gray-700 italic">Tertanda: {formData.nama}</p>
+)}
 
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
-        className="mb-4"
-      />
+<input
+    type="file"
+    accept="image/*"
+    onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
+    className="mb-4"
+    />
 
-      <div className="mb-4 flex gap-4">
-        <button
-          type="button"
-          onClick={clearCanvas}
-          className="text-sm text-blue-600 underline"
-        >
-          Bersihkan Tanda Tangan
-        </button>
-        <button
-          type="button"
-          onClick={downloadSignature}
-          className="text-sm text-green-600 underline"
-        >
-          Unduh Tanda Tangan
-        </button>
-      </div>
+{/* Tombol aksi canvas */}
+<div className="mb-4 flex gap-4">
+  <button type="button" onClick={clearCanvas} className="text-sm text-blue-600 underline">
+    Bersihkan Tanda Tangan
+  </button>
+  <button type="button" onClick={downloadSignature} className="text-sm text-green-600 underline">
+    Unduh Tanda Tangan
+  </button>
+</div>
 
       <label className="block mb-4">
-        <input
-          type="checkbox"
-          name="persetujuan"
-          checked={formData.persetujuan}
-          onChange={handleChange}
-          required
-          className="mr-2"
-        />
+        <input type="checkbox" name="persetujuan" checked={formData.persetujuan} onChange={handleChange} required className="mr-2" />
         Saya menyatakan telah menerima penjelasan materi pelatihan *
       </label>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className={`bg-blue-500 text-white px-4 py-2 rounded transition duration-300 ease-in-out transform hover:scale-105 hover:bg-blue-600 ${
-          isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
-        }`}
-      >
-        {isSubmitting ? 'Mengirim...' : 'Kirim'}
-      </button>
+      <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">Kirim</button>
     </form>
   );
 };
 
-export default FormInput;
+export default FormInput; 
+
+function clearForm() {
+  throw new Error('Function not implemented.');
+}
+
