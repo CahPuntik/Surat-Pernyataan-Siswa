@@ -106,49 +106,99 @@ const FormInput = () => {
       reader.onerror = reject;
     });
 
-    const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      
-      // Validasi
-      if (!formData.persetujuan) {
-        alert('Anda harus menyetujui pernyataan');
-        return;
-      }
-    
-      try {
-        const signatureData = uploadedFile 
-          ? await toBase64(uploadedFile)
-          : canvasRef.current?.toDataURL() || '';
-    
-        const payload = {
-          ...formData,
-          signature: signatureData
-        };
-    
-      const url = 'https://script.google.com/macros/s/AKfycbxVxqDmBLA6LoC-ZfTgQS4smmVRH_LWhhypYix10fE38_rjhZEWbzG_wVYbImYF0af7/exec';
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Validasi form
+  if (!formData.persetujuan) {
+    alert('Anda harus menyetujui pernyataan');
+    return;
+  }
 
-const response = await fetch(url, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify(payload)
-});
+  // Validasi field wajib lainnya
+  if (!formData.nama || !formData.nrp || !formData.materi || !formData.instruktur || !formData.tanggal) {
+    alert('Harap lengkapi semua field wajib');
+    return;
+  }
 
-const result = await response.json();
-console.log(result);
-    
-        // Jika menggunakan mode no-cors, response tidak bisa dibaca
-        alert('Data berhasil dikirim!');
-        clearForm(); 
-    
-      } catch (error) {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat mengirim data');
-      }
-    }; 
+  try {
+    // Konversi tanda tangan ke base64
+    let signatureData = "";
+    if (uploadedFile) {
+      signatureData = await toBase64(uploadedFile);
+    } else if (canvasRef.current) {
+      signatureData = canvasRef.current.toDataURL();
+    } else {
+      alert('Harap berikan tanda tangan');
+      return;
+    }
 
-  return (
+    const payload = {
+      ...formData,
+      signature: signatureData,
+      timestamp: new Date().toISOString() // Tambahkan timestamp
+    };
+
+    // URL Google Apps Script
+    const scriptUrl = 'https://script.google.com/macros/s/AKfycbwQpKounVvNAmErqrJgEwa5ETXP8W_-ZCLWklgpHVjn6Iv9dT3B2MHrdNyw7QeKlVyjkw/exec';
+
+    // Pastikan URL menggunakan HTTPS
+    const secureScriptUrl = scriptUrl.replace('http://', 'https://');
+
+    // Menggunakan proxy di development
+    const apiUrl = import.meta.env.DEV 
+      ? `/api/${secureScriptUrl.split('/macros/')[1]}`
+      : secureScriptUrl;
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      mode: 'no-cors', // Penting untuk Google Apps Script
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    // Karena mode no-cors, kita tidak bisa membaca response secara langsung
+    // Jadi kita anggap berhasil jika tidak ada error
+    alert('Data berhasil dikirim!');
+    clearForm();
+
+  } catch (error) {
+    console.error('Error:', error);
+    alert(`Terjadi kesalahan: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+const clearForm = () => {
+  setFormData({
+    nama: '',
+    nrp: '',
+    materi: '',
+    instruktur: '',
+    tanggal: '',
+    persetujuan: false,
+  });
+  if (canvasRef.current) {
+    const ctx = canvasRef.current.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+  }
+  setUploadedFile(null);
+};
+
+// Fungsi untuk mengkonversi file ke base64
+const toBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+};
+
+  return (  
     <form onSubmit={handleSubmit} className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4 w-full max-w-md">
         {/* Logo kanan atas */}
       <div className="flex justify-between items-center mb-4">
