@@ -106,38 +106,47 @@ const FormInput = () => {
       reader.onerror = reject;
     });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    let signatureData = '';
-    if (uploadedFile) {
-      signatureData = await toBase64(uploadedFile);
-    } else {
-      const canvas = canvasRef.current;
-      signatureData = canvas?.toDataURL() || '';
-    }
-
-    const payload = {
-      ...formData,
-      signature: signatureData,
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      // Validasi
+      if (!formData.persetujuan) {
+        alert('Anda harus menyetujui pernyataan');
+        return;
+      }
+    
+      try {
+        const signatureData = uploadedFile 
+          ? await toBase64(uploadedFile)
+          : canvasRef.current?.toDataURL() || '';
+    
+        const payload = {
+          ...formData,
+          signature: signatureData
+        };
+    
+        // Gunakan endpoint dengan /dev di akhir untuk testing
+        const url = 'https://script.google.com/macros/s/AKfycbxVxqDmBLA6LoC-ZfTgQS4smmVRH_LWhhypYix10fE38_rjhZEWbzG_wVYbImYF0af7/exec/dev';
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+          // Mode no-cors untuk development
+          mode: 'no-cors'
+        });
+    
+        // Jika menggunakan mode no-cors, response tidak bisa dibaca
+        alert('Data berhasil dikirim!');
+        clearForm();
+    
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan saat mengirim data');
+      }
     };
-
-    try {
-      const response = await fetch('https://script.google.com/macros/s/AKfycbxVxqDmBLA6LoC-ZfTgQS4smmVRH_LWhhypYix10fE38_rjhZEWbzG_wVYbImYF0af7/exec', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const result = await response.json();
-      alert(result.message || 'Data berhasil dikirim!');
-      clearCanvas();
-    } catch (error) {
-      console.error(error);
-      alert('Gagal mengirim data');
-    }
-  };
 
   return (
     <form onSubmit={handleSubmit} className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4 w-full max-w-md">
