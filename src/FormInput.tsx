@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 const FormInput = () => {
   const [formData, setFormData] = useState({
@@ -93,19 +93,21 @@ const FormInput = () => {
     ctx.stroke();
   };
 
-  const stopDrawing = (e?: React.MouseEvent | React.TouchEvent) => {
-    e?.preventDefault();
-    setIsDrawing(false);
+  // Handler file upload yang lebih aman
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.size > 2 * 1024 * 1024) {
+      alert('File terlalu besar. Maksimal 2MB');
+      return;
+    }
+    setUploadedFile(file || null);
   };
 
-  const toBase64 = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-    });
-
+  const stopDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setIsDrawing(false);
+  }; 
+ 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   
@@ -142,20 +144,12 @@ const handleSubmit = async (e: React.FormEvent) => {
     // URL Google Apps Script
     const scriptUrl = "https://script.google.com/macros/s/AKfycbwQpKounVvNAmErqrJgEwa5ETXP8W_-ZCLWklgpHVjn6Iv9dT3B2MHrdNyw7QeKlVyjkw/exec";
 
-    // Pastikan URL menggunakan HTTPS
-    const secureScriptUrl = scriptUrl.replace('http://', 'https://');
-
-    // Gunakan langsung script URL
-const apiUrl = secureScriptUrl;
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      mode: 'no-cors', // Penting untuk Google Apps Script
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+  await fetch(scriptUrl, {
+  method: "POST",
+  mode: "no-cors",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload),
+});
 
     // Karena mode no-cors, kita tidak bisa membaca response secara langsung
     // Jadi kita anggap berhasil jika tidak ada error
@@ -317,9 +311,4 @@ const toBase64 = (file: File): Promise<string> => {
   );
 };
 
-export default FormInput; 
-
-function clearForm() {
-  throw new Error('Function not implemented.');
-}
-
+export default FormInput;
